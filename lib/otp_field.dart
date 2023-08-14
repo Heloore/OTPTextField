@@ -93,6 +93,7 @@ class OTPTextField extends StatefulWidget {
 class _OTPTextFieldState extends State<OTPTextField> {
   late OtpFieldStyle _otpFieldStyle;
   late List<FocusNode?> _focusNodes;
+  late List<FocusNode?> _focusNodesForKeyListeners;
   late List<TextEditingController?> _textControllers;
 
   late List<String> _pin;
@@ -112,6 +113,7 @@ class _OTPTextFieldState extends State<OTPTextField> {
     }
 
     _focusNodes = List<FocusNode?>.filled(widget.length, null, growable: false);
+    _focusNodesForKeyListeners = List<FocusNode?>.filled(widget.length, null, growable: false);
     _textControllers = List<TextEditingController?>.filled(widget.length, null, growable: false);
 
     _pin = List.generate(widget.length, (int i) {
@@ -122,6 +124,8 @@ class _OTPTextFieldState extends State<OTPTextField> {
   @override
   void dispose() {
     _textControllers.forEach((controller) => controller?.dispose());
+    _focusNodes.forEach((node) => node?.dispose());
+    _focusNodesForKeyListeners.forEach((node) => node?.dispose());
     super.dispose();
   }
 
@@ -145,6 +149,7 @@ class _OTPTextFieldState extends State<OTPTextField> {
   /// * Requires Int position of the field
   Widget buildTextField(BuildContext context, int index) {
     FocusNode? focusNode = _focusNodes[index];
+    FocusNode? focusForKeyListener = _focusNodesForKeyListeners[index];
     TextEditingController? textEditingController = _textControllers[index];
 
     // if focus node doesn't exist, create it.
@@ -152,6 +157,10 @@ class _OTPTextFieldState extends State<OTPTextField> {
       _focusNodes[index] = FocusNode();
       focusNode = _focusNodes[index];
       focusNode?.addListener((() => handleFocusChange(index)));
+    }
+    if (focusForKeyListener == null) {
+      _focusNodesForKeyListeners[index] = FocusNode();
+      focusForKeyListener = _focusNodesForKeyListeners[index];
     }
     if (textEditingController == null) {
       _textControllers[index] = TextEditingController();
@@ -176,69 +185,86 @@ class _OTPTextFieldState extends State<OTPTextField> {
       margin: EdgeInsets.only(
         right: isLast ? 0 : widget.spaceBetween,
       ),
-      child: TextField(
-        controller: _textControllers[index],
-        keyboardType: widget.keyboardType,
-        textCapitalization: widget.textCapitalization,
-        textAlign: TextAlign.center,
-        style: widget.style,
-        inputFormatters: widget.inputFormatter,
-        maxLength: 1,
-        focusNode: _focusNodes[index],
-        obscureText: widget.obscureText,
-        decoration: InputDecoration(
-          isDense: widget.isDense,
-          filled: true,
-          fillColor: _otpFieldStyle.backgroundColor,
-          counterText: "",
-          contentPadding: widget.contentPadding,
-          border: _getBorder(_otpFieldStyle.borderColor),
-          focusedBorder: _getBorder(_otpFieldStyle.focusBorderColor),
-          enabledBorder: _getBorder(_otpFieldStyle.enabledBorderColor),
-          disabledBorder: _getBorder(_otpFieldStyle.disabledBorderColor),
-          errorBorder: _getBorder(_otpFieldStyle.errorBorderColor),
-          focusedErrorBorder: _getBorder(_otpFieldStyle.errorBorderColor),
-          errorText: null,
-          // to hide the error text
-          errorStyle: const TextStyle(height: 0, fontSize: 0),
-        ),
-        onChanged: (String str) {
-          if (str.length > 1) {
-            _handlePaste(str);
-            return;
+      child: RawKeyboardListener(
+        focusNode: focusForKeyListener!,
+        onKey: (RawKeyEvent event) {
+          if (event is RawKeyUpEvent) {
+            if (event.data.logicalKey.keyLabel == "Backspace") {
+              if (_pin[index].isEmpty) {
+                _focusNodes[index]!.unfocus();
+                if (index - 1 != -1) {
+                  FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+                } else {
+                  _pin[index] = "";
+                }
+              }
+            }
           }
-
-          // Check if the current value at this position is empty
-          // If it is move focus to previous text field.
-          if (str.isEmpty) {
-            if (index == 0) return;
-            _focusNodes[index]!.unfocus();
-            _focusNodes[index - 1]!.requestFocus();
-          }
-
-          // Update the current pin
-          setState(() {
-            _pin[index] = str;
-          });
-
-          // Remove focus
-          if (str.isNotEmpty) _focusNodes[index]!.unfocus();
-          // Set focus to the next field if available
-          if (index + 1 != widget.length && str.isNotEmpty) {
-            FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
-          }
-
-          String currentPin = _getCurrentPin();
-
-          // if there are no null values that means otp is completed
-          // Call the `onCompleted` callback function provided
-          if (!_pin.contains(null) && !_pin.contains('') && currentPin.length == widget.length) {
-            widget.onCompleted?.call(currentPin);
-          }
-
-          // Call the `onChanged` callback function
-          widget.onChanged!(currentPin);
         },
+        child: TextField(
+          controller: _textControllers[index],
+          keyboardType: widget.keyboardType,
+          textCapitalization: widget.textCapitalization,
+          textAlign: TextAlign.center,
+          style: widget.style,
+          inputFormatters: widget.inputFormatter,
+          maxLength: 1,
+          focusNode: _focusNodes[index],
+          obscureText: widget.obscureText,
+          decoration: InputDecoration(
+            isDense: widget.isDense,
+            filled: true,
+            fillColor: _otpFieldStyle.backgroundColor,
+            counterText: "",
+            contentPadding: widget.contentPadding,
+            border: _getBorder(_otpFieldStyle.borderColor),
+            focusedBorder: _getBorder(_otpFieldStyle.focusBorderColor),
+            enabledBorder: _getBorder(_otpFieldStyle.enabledBorderColor),
+            disabledBorder: _getBorder(_otpFieldStyle.disabledBorderColor),
+            errorBorder: _getBorder(_otpFieldStyle.errorBorderColor),
+            focusedErrorBorder: _getBorder(_otpFieldStyle.errorBorderColor),
+            errorText: null,
+            // to hide the error text
+            errorStyle: const TextStyle(height: 0, fontSize: 0),
+          ),
+          onChanged: (String str) {
+            if (str.length > 1) {
+              _handlePaste(str);
+              return;
+            }
+
+            // Check if the current value at this position is empty
+            // If it is move focus to previous text field.
+            if (str.isEmpty) {
+              if (index == 0) return;
+              _focusNodes[index]!.unfocus();
+              _focusNodes[index - 1]!.requestFocus();
+            }
+
+            // Update the current pin
+            setState(() {
+              _pin[index] = str;
+            });
+
+            // Remove focus
+            if (str.isNotEmpty) _focusNodes[index]!.unfocus();
+            // Set focus to the next field if available
+            if (index + 1 != widget.length && str.isNotEmpty) {
+              FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+            }
+
+            String currentPin = _getCurrentPin();
+
+            // if there are no null values that means otp is completed
+            // Call the `onCompleted` callback function provided
+            if (!_pin.contains(null) && !_pin.contains('') && currentPin.length == widget.length) {
+              widget.onCompleted?.call(currentPin);
+            }
+
+            // Call the `onChanged` callback function
+            widget.onChanged!(currentPin);
+          },
+        ),
       ),
     );
   }
