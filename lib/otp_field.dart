@@ -190,6 +190,11 @@ class _OTPTextFieldState extends State<OTPTextField> {
         onKey: (RawKeyEvent event) {
           if (event is RawKeyUpEvent) {
             if (event.data.logicalKey.keyLabel == "Backspace") {
+              if (_pin[index].isNotEmpty && index - 1 != -1) {
+                FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+                return;
+              }
+
               if (_pin[index].isEmpty) {
                 _focusNodes[index]!.unfocus();
                 if (index - 1 != -1) {
@@ -208,7 +213,7 @@ class _OTPTextFieldState extends State<OTPTextField> {
           textAlign: TextAlign.center,
           style: widget.style,
           inputFormatters: widget.inputFormatter,
-          maxLength: 1,
+          maxLength: 2,
           focusNode: _focusNodes[index],
           obscureText: widget.obscureText,
           decoration: InputDecoration(
@@ -228,6 +233,27 @@ class _OTPTextFieldState extends State<OTPTextField> {
             errorStyle: const TextStyle(height: 0, fontSize: 0),
           ),
           onChanged: (String str) {
+            int? baseSelect = _textControllers[index]?.selection.baseOffset;
+            int currentIndex = index;
+
+            if (baseSelect == 1) {
+              str = str[0];
+              _textControllers[index]?.text = str;
+            }
+            if (baseSelect == 2) {
+              if (currentIndex + 1 == widget.length) {
+                _textControllers[index]?.text = str[1];
+              } else {
+                _textControllers[index]?.text = str[0];
+              }
+
+              str = str[1];
+              if (currentIndex + 1 != widget.length && str.isNotEmpty) {
+                currentIndex += 1;
+                _textControllers[currentIndex]?.text = str;
+              }
+            }
+
             if (str.length > 1) {
               _handlePaste(str);
               return;
@@ -237,13 +263,13 @@ class _OTPTextFieldState extends State<OTPTextField> {
             // If it is move focus to previous text field.
             if (str.isEmpty) {
               if (index == 0) return;
-              _focusNodes[index]!.unfocus();
-              _focusNodes[index - 1]!.requestFocus();
+              // _focusNodes[index]!.unfocus();
+              // _focusNodes[index - 1]!.requestFocus();
             }
 
             // Update the current pin
             setState(() {
-              _pin[index] = str;
+              _pin[currentIndex] = str;
             });
 
             // Remove focus
@@ -258,6 +284,10 @@ class _OTPTextFieldState extends State<OTPTextField> {
             // if there are no null values that means otp is completed
             // Call the `onCompleted` callback function provided
             if (!_pin.contains(null) && !_pin.contains('') && currentPin.length == widget.length) {
+              if (currentIndex == widget.length - 1) {
+                _focusNodes[currentIndex]!.unfocus();
+              }
+
               widget.onCompleted?.call(currentPin);
             }
 
