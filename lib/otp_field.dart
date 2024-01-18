@@ -213,7 +213,7 @@ class _OTPTextFieldState extends State<OTPTextField> {
           textAlign: TextAlign.center,
           style: widget.style,
           inputFormatters: widget.inputFormatter,
-          maxLength: 2,
+          maxLength: 6,
           focusNode: _focusNodes[index],
           obscureText: widget.obscureText,
           decoration: InputDecoration(

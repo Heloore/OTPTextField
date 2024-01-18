@@ -46,7 +46,7 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         child: OTPTextField(
             controller: otpController,
-            length: 5,
+            length: 6,
             width: MediaQuery.of(context).size.width,
             textFieldAlignment: MainAxisAlignment.spaceAround,
             fieldWidth: 45,
